@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Household Commitment Tracker</title>
+<style>
+  :root {
+    --bg: #f6f5f2;
+    --card: #ffffff;
+    --ink: #2f3237;
+    --muted: #7a7f87;
+    --accent: #5b8a72;
+    --accent-soft: #e6efe9;
+    --warn: #b3833a;
+    --warn-soft: #f6ecdd;
+    --line: #e7e4de;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Segoe UI", Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 28px 20px 48px; }
+  header { margin-bottom: 20px; }
+  header h1 { margin: 0; font-size: 24px; font-weight: 600; }
+  header p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+
+  section {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 20px 22px;
+    margin-bottom: 18px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  h2 { margin: 0 0 4px; font-size: 18px; font-weight: 600; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 16px; }
+
+  /* Summary */
+  .summary-grid { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; }
+  .field label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+  input[type="number"] {
+    font-size: 17px; padding: 9px 12px; border: 1px solid var(--line);
+    border-radius: 9px; width: 180px; background: #fbfaf8; color: var(--ink);
+  }
+  input[type="number"]:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+  .stat {
+    flex: 1; min-width: 170px; background: var(--bg);
+    border-radius: 10px; padding: 12px 16px;
+  }
+  .stat .k { font-size: 12px; color: var(--muted); }
+  .stat .v { font-size: 20px; font-weight: 600; }
+  .summary-line {
+    margin-top: 14px; padding: 10px 14px; border-radius: 9px;
+    background: var(--accent-soft); color: #3c5c4b; font-size: 14px;
+  }
+  .summary-line.tight { background: var(--warn-soft); color: #7a5a24; }
+
+  /* Commitment list */
+  .commitment {
+    display: block; width: 100%; text-align: left;
+    border: 1px solid var(--line); background: #fbfaf8;
+    border-radius: 11px; padding: 13px 16px; margin-bottom: 10px;
+    cursor: pointer; font: inherit; color: inherit;
+  }
+  .commitment:hover { border-color: var(--accent); }
+  .commitment.selected { border-color: var(--accent); background: var(--accent-soft); }
+  .c-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  .c-name { font-weight: 600; }
+  .c-amount { font-weight: 600; white-space: nowrap; }
+  .c-dates { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .c-bottom { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+  .badge {
+    font-size: 12px; padding: 2px 10px; border-radius: 20px;
+    background: var(--warn-soft); color: var(--warn); white-space: nowrap;
+  }
+  .badge.paid { background: var(--accent-soft); color: #3c5c4b; }
+  .progress { flex: 1; height: 7px; background: var(--line); border-radius: 5px; overflow: hidden; }
+  .progress span { display: block; height: 100%; background: var(--accent); border-radius: 5px; }
+  .progress-label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+  /* Decision */
+  #decisionBody.empty { color: var(--muted); font-size: 14px; }
+  .d-grid { display: flex; flex-wrap: wrap; gap: 14px; }
+  .d-grid > div { flex: 1; min-width: 180px; background: var(--bg); border-radius: 10px; padding: 11px 15px; }
+  .d-grid .k { font-size: 12px; color: var(--muted); }
+  .d-grid .v { font-weight: 600; }
+  .d-actions { margin-top: 16px; display: flex; gap: 10px; flex-wrap: wrap; }
+  button.action {
+    font: inherit; font-weight: 600; padding: 10px 20px;
+    border-radius: 9px; border: none; cursor: pointer;
+  }
+  button.proceed { background: var(--accent); color: #fff; }
+  button.proceed:hover { background: #4c7a62; }
+  button.defer { background: #fff; color: var(--warn); border: 1px solid var(--warn); }
+  button.defer:hover { background: var(--warn-soft); }
+  .d-result { margin-top: 14px; padding: 10px 14px; border-radius: 9px; font-size: 14px; background: var(--bg); color: var(--ink); }
+  .d-result.good { background: var(--accent-soft); color: #3c5c4b; }
+  .d-result.wait { background: var(--warn-soft); color: #7a5a24; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Household Commitment Tracker</h1>
+    <p>Sample view only — figures are illustrative examples, not real data. Nothing is saved between visits.</p>
+  </header>
+
+  <!-- 1. Monthly Summary -->
+  <section id="summary">
+    <h2>Monthly Summary</h2>
+    <p class="sub">The month's money at a glance. Change the monthly amount and the balance updates instantly.</p>
+    <div class="summary-grid">
+      <div class="field">
+        <label for="monthlyInput">Monthly savings / income (RM)</label>
+        <input type="number" id="monthlyInput" value="4500" min="0" step="100">
+      </div>
+      <div class="stat">
+        <div class="k">Total committed payments</div>
+        <div class="v" id="totalCommitted">RM 0</div>
+      </div>
+      <div class="stat">
+        <div class="k">Remaining balance</div>
+        <div class="v" id="remainingBalance">RM 0</div>
+      </div>
+    </div>
+    <div class="summary-line" id="summaryLine"></div>
+    <h2 style="margin-top:22px">Spent vs balance saved</h2>
+    <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap">
+      <canvas id="pieChart" width="180" height="180" aria-label="Pie chart of spent versus balance saved"></canvas>
+      <div id="pieLegend" style="font-size:14px"></div>
+    </div>
+  </section>
+
+  <!-- Add Commitment form -->
+  <section id="addCommitment">
+    <h2>Add Commitment</h2>
+    <p class="sub">Fill in the details and add it — the new commitment appears in the list below immediately.</p>
+    <form id="addForm">
+      <div class="summary-grid">
+        <div class="field" style="flex:1;min-width:220px">
+          <label for="addName">Commitment name</label>
+          <input type="text" id="addName" placeholder="e.g. Car loan — Maybank" style="width:100%">
+        </div>
+        <div class="field">
+          <label for="addAmount">Amount (RM)</label>
+          <input type="number" id="addAmount" min="1" step="1" placeholder="e.g. 750">
+        </div>
+        <div class="field">
+          <label for="addLast">Last payment made</label>
+          <input type="date" id="addLast">
+        </div>
+        <div class="field">
+          <label for="addNext">Next due date</label>
+          <input type="date" id="addNext">
+        </div>
+        <div class="field">
+          <label for="addStatus">Status</label>
+          <select id="addStatus" style="font-size:16px;padding:9px 12px;border:1px solid var(--line);border-radius:9px;background:#fbfaf8;color:var(--ink)">
+            <option>Due soon</option>
+            <option>Up to date</option>
+            <option>Overdue</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>&nbsp;</label>
+          <button type="submit" class="action proceed" style="width:100%">Add to list</button>
+        </div>
+      </div>
+      <div class="d-result" id="addFeedback" hidden></div>
+    </form>
+  </section>
+
+  <!-- 2. Commitment List -->
+  <section id="list">
+    <h2>Commitment List</h2>
+    <p class="sub">Tap a commitment to focus on it in the Payment Decision section below.</p>
+    <div id="commitmentList"></div>
+  </section>
+
+  <!-- 3. Payment Decision -->
+  <section id="decision">
+    <h2>Payment Decision</h2>
+    <p class="sub">Decide what to do next for the selected commitment.</p>
+    <div id="decisionBody" class="empty">Select a commitment above to see its details and decide.</div>
+  </section>
+</div>
+
+<script>
+"use strict";
+
+// Sample Malaysia-specific household commitments (illustrative figures only)
+let commitments = [
+  {
+    id: 1,
+    name: "Housing loan — Terrace house",
+    amount: 1450,
+    lastPayment: "2026-11-05",
+    nextDue: "2026-12-05",
+    status: "Due soon",
+    paidMonths: 8, totalMonths: 12 // progress toward the year
+  },
+  {
+    id: 2,
+    name: "Insurance premium — Medical & life",
+    amount: 320,
+    lastPayment: "2026-11-12",
+    nextDue: "2026-12-12",
+    status: "Up to date",
+    paidMonths: 10, totalMonths: 12
+  },
+  {
+    id: 3,
+    name: "Quit rent (cukai tanah) — DBKL",
+    amount: 180,
+    lastPayment: "2026-06-28",
+    nextDue: "2026-12-01",
+    status: "Overdue",
+    paidMonths: 6, totalMonths: 12
+  }
+];
+
+let selectedId = null;
+let lastResult = "";
+
+const fmt = n => "RM " + Number(n).toLocaleString("en-MY", { maximumFractionDigits: 2 });
+
+function getMonthly() { return parseFloat(document.getElementById("monthlyInput").value) || 0; }
+// Paid commitments drop out of the total; deferred ones stay reserved
+function totalCommitted() { return commitments.filter(c => c.status !== "Paid").reduce((s, c) => s + c.amount, 0); }
+function selected() { return commitments.find(c => c.id === selectedId) || null; }
+
+function renderSummary() {
+  const monthly = getMonthly();
+  const total = totalCommitted();
+  const remaining = monthly - total;
+  document.getElementById("totalCommitted").textContent = fmt(total);
+  document.getElementById("remainingBalance").textContent = fmt(remaining);
+  const line = document.getElementById("summaryLine");
+  if (remaining >= 0) {
+    line.className = "summary-line";
+    line.textContent = "After " + fmt(total) + " in commitments, you have " + fmt(remaining) + " left this month.";
+  } else {
+    line.className = "summary-line tight";
+    line.textContent = "Commitments of " + fmt(total) + " exceed your monthly amount by " + fmt(Math.abs(remaining)) + ". Consider deferring a payment.";
+  }
+}
+
+function renderList() {
+  const wrapEl = document.getElementById("commitmentList");
+  wrapEl.innerHTML = "";
+  commitments.forEach(c => {
+    const btn = document.createElement("button");
+    btn.className = "commitment" + (c.id === selectedId ? " selected" : "");
+    const pct = Math.round((c.paidMonths / c.totalMonths) * 100);
+    btn.innerHTML =
+      '<div class="c-top"><span class="c-name">' + c.name + '</span>' +
+      '<span class="c-amount">' + fmt(c.amount) + '</span></div>' +
+      '<div class="c-dates">Last paid: ' + c.lastPayment + ' &middot; Next due: ' + c.nextDue + '</div>' +
+      '<div class="c-bottom"><span class="badge ' + (c.status === "Paid" ? "paid" : "") + '">' + c.status + '</span>' +
+      '<span class="progress"><span style="width:' + pct + '%"></span></span>' +
+      '<span class="progress-label">' + pct + '% of year</span></div>';
+    btn.addEventListener("click", () => { selectedId = c.id; lastResult = ""; render(); });
+    wrapEl.appendChild(btn);
+  });
+}
+
+function renderDecision() {
+  const body = document.getElementById("decisionBody");
+  const c = selected();
+  if (!c) {
+    body.className = "empty";
+    body.textContent = "Select a commitment above to see its details and decide.";
+    return;
+  }
+  body.className = "";
+  const pct = Math.round((c.paidMonths / c.totalMonths) * 100);
+  const monthly = getMonthly();
+  const afterProceed = monthly - c.amount;
+  const afterDefer = monthly;
+  body.innerHTML =
+    '<div class="d-grid">' +
+      '<div><div class="k">Selected commitment</div><div class="v">' + c.name + '</div></div>' +
+      '<div><div class="k">Amount</div><div class="v">' + fmt(c.amount) + '</div></div>' +
+      '<div><div class="k">Last payment made</div><div class="v">' + c.lastPayment + '</div></div>' +
+      '<div><div class="k">Next due date</div><div class="v">' + c.nextDue + '</div></div>' +
+      '<div><div class="k">Current status</div><div class="v">' + c.status + '</div></div>' +
+      '<div><div class="k">Progress</div><div class="v">' + pct + '% of the year (' + c.paidMonths + ' of ' + c.totalMonths + ' months)</div></div>' +
+      '<div><div class="k">If you proceed now</div><div class="v">' + fmt(afterProceed) + ' left this month</div></div>' +
+      '<div><div class="k">If you defer later</div><div class="v">' + fmt(afterDefer) + ' left this month</div></div>' +
+    '</div>' +
+    '<div class="d-actions">' +
+      '<button class="action proceed" id="proceedBtn">Proceed now</button>' +
+      '<button class="action defer" id="deferBtn">Defer later</button>' +
+    '</div>' +
+    (lastResult ? '<div class="d-result ' + (lastResult.good ? "good" : "wait") + '">' + lastResult.text + '</div>' : "");
+  document.getElementById("proceedBtn").addEventListener("click", () => decide(c, true));
+  document.getElementById("deferBtn").addEventListener("click", () => decide(c, false));
+}
+
+function decide(c, proceed) {
+  if (proceed) {
+    c.status = "Paid";
+    c.lastPayment = c.nextDue;
+    // push due date one month ahead (sample dates use 2026, so simple string edit is safe)
+    const [y, m, d] = c.nextDue.split("-").map(Number);
+    const nm = m === 12 ? 1 : m + 1;
+    const ny = m === 12 ? y + 1 : y;
+    c.nextDue = ny + "-" + String(nm).padStart(2, "0") + "-" + String(d).padStart(2, "0");
+    c.paidMonths = Math.min(c.totalMonths, c.paidMonths + 1);
+    lastResult = {
+      good: true,
+      text: "Proceeded: " + c.name + " marked as Paid for " + fmt(c.amount) + ". Remaining balance is now " + fmt(getMonthly() - totalCommitted()) + "."
+    };
+  } else {
+    c.status = "Deferred";
+    lastResult = {
+      good: false,
+      text: "Deferred: " + c.name + " payment of " + fmt(c.amount) + " moved to a later date. The amount stays in your remaining balance for now (" + fmt(getMonthly() - totalCommitted()) + ")."
+    };
+  }
+  render();
+}
+
+function renderPie() {
+  const monthly = getMonthly();
+  const spent = totalCommitted(); // unpaid/deferred commitments reserved this month
+  const saved = Math.max(0, monthly - spent);
+  const total = spent + saved;
+  const canvas = document.getElementById("pieChart");
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const cx = canvas.width / 2, cy = canvas.height / 2, r = 78;
+  const spentColor = "#c98a3e", savedColor = "#5b8a72";
+  let start = -Math.PI / 2;
+  if (total <= 0) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = "#e7e4de";
+    ctx.fill();
+  } else {
+    [ [spent, spentColor], [saved, savedColor] ].forEach(([v, color]) => {
+      const angle = (v / total) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, r, start, start + angle);
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
+      start += angle;
+    });
+  }
+  const pct = total > 0 ? Math.round((spent / total) * 100) : 0;
+  document.getElementById("pieLegend").innerHTML =
+    '<div><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:' + spentColor + '"></span> ' +
+    '<b>Spent / committed:</b> ' + fmt(spent) + ' (' + pct + '%)</div>' +
+    '<div style="margin-top:6px"><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:' + savedColor + '"></span> ' +
+    '<b>Balance saved:</b> ' + fmt(saved) + ' (' + (100 - pct) + '%)</div>';
+}
+
+function render() {
+  renderSummary();
+  renderList();
+  renderDecision();
+  renderPie();
+}
+
+document.getElementById("monthlyInput").addEventListener("input", render);
+
+// Add Commitment form
+document.getElementById("addForm").addEventListener("submit", function (e) {
+  e.preventDefault();
+  const name = document.getElementById("addName").value.trim();
+  const amount = parseFloat(document.getElementById("addAmount").value);
+  const last = document.getElementById("addLast").value;
+  const next = document.getElementById("addNext").value;
+  const status = document.getElementById("addStatus").value;
+  const fb = document.getElementById("addFeedback");
+  if (!name || !(amount > 0) || !last || !next) {
+    fb.hidden = false;
+    fb.className = "d-result wait";
+    fb.textContent = "Please fill in the name, amount, last payment date and next due date before adding.";
+    return;
+  }
+  commitments.push({
+    id: Date.now(),
+    name: name,
+    amount: amount,
+    lastPayment: last,
+    nextDue: next,
+    status: status,
+    paidMonths: Math.max(1, new Date(next).getMonth() + 1),
+    totalMonths: 12
+  });
+  fb.hidden = false;
+  fb.className = "d-result good";
+  fb.textContent = "Added: " + name + " (" + fmt(amount) + ", due " + next + ") now appears in the Commitment List below.";
+  this.reset();
+  render();
+});
+
+render();
+</script>
+</body>
+</html>
